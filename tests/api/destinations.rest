@@ -1,0 +1,4 @@
+### Cari destination 
+GET https://rajaongkir.komerce.id/api/v1/destination/domestic-destination?search=semarang&limit=50
+Accept: application/json
+key: hOjdIG5Xce020fdd0e86a50aRDbZ9Ig3
