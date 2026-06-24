@@ -15,26 +15,33 @@
                 <i class="bi bi-cart-check"></i>
                 <span>Keranjang</span>
             </a>
-        </li><!-- End Keranjang Nav --> 
+        </li><!-- End Keranjang Nav -->
         <?php
         if (session()->get('role') == 'admin') {
-        ?>  
-        
-        <li class="nav-item">
-            <a class="nav-link <?php echo (uri_string() == 'produk') ? "" : "collapsed" ?>" href="produk">
-                <i class="bi bi-receipt"></i>
-                <span>Produk</span>
-            </a>
-        </li><!-- End Produk Nav --> 
+            ?>
 
-        <li class="nav-item">
-            <a class="nav-link <?= (uri_string() == 'profile') ? '' : 'collapsed' ?>" href="<?= base_url('profile') ?>">
-                <i class="bi bi-person"></i>
-                <span>Profile</span>
-            </a>
-        </li><!-- End Profile Nav --> 
-        <?php
+            <li class="nav-item">
+                <a class="nav-link <?php echo (uri_string() == 'produk') ? "" : "collapsed" ?>" href="produk">
+                    <i class="bi bi-receipt"></i>
+                    <span>Produk</span>
+                </a>
+            </li><!-- End Produk Nav -->
+
+            <li class="nav-item">
+                <a class="nav-link <?php echo (uri_string() == 'history') ? "" : "collapsed" ?>" href="history">
+                    <i class="bi bi-person"></i>
+                    <span>History</span>
+                </a>
+            </li><!-- End History Nav -->
+
+            <li class="nav-item">
+                <a class="nav-link <?= (uri_string() == 'profile') ? '' : 'collapsed' ?>" href="<?= base_url('profile') ?>">
+                    <i class="bi bi-person"></i>
+                    <span>Profile</span>
+                </a>
+            </li><!-- End Profile Nav -->
+            <?php
         }
-        ?>  
+        ?>
     </ul>
 </aside><!-- End Sidebar-->
