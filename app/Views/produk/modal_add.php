@@ -64,4 +64,6 @@
             
             <?= form_close(); ?>
         </div>
+    </div>
+</div>
 <!-- Add Modal End -->

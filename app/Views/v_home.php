@@ -1,15 +1,6 @@
 <?= $this->extend('layout') ?>
 <?= $this->section('content') ?>
-<?php
-if (session()->getFlashData('success')) {
-?>
-    <div class="alert alert-success alert-dismissible fade show" role="alert">
-        <?= session()->getFlashData('success') ?>
-        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-    </div>
-<?php
-}
-?>
+
 <div class="row">
     <?php foreach ($products as $key => $item): ?>
         <div class="col-lg-6">

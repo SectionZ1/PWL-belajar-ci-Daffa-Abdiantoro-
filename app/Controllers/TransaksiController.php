@@ -175,59 +175,153 @@ class TransaksiController extends BaseController
 
         $ongkir = (int) $this->request->getPost('ongkir');
 
+        // Hitung diskon menggunakan helper
+        require_once APPPATH . 'Helpers/DiskonHelper.php';
+        
+        $voucher_code = $this->request->getPost('voucher_code');
+        $biaya_jasa = hitung_biaya_jasa($subtotal);
+        $diskon_voucher = hitung_diskon_voucher($subtotal, $voucher_code);
+        $free_mouse = hitung_free_mouse($subtotal);
+        
+        $diskon_data = hitung_diskon($subtotal);
+        $nominal_diskon = $diskon_voucher + $free_mouse;
+
         $transaction = [
             'username' => $this->request->getPost('username'),
             'alamat' => $this->request->getPost('alamat'),
             'ongkir' => $ongkir,
-            'total_harga' => $subtotal + $ongkir,
+            'diskon' => $nominal_diskon,
+            'biaya_jasa' => $biaya_jasa,
+            'voucher_code' => $voucher_code,
+            'diskon_voucher' => $diskon_voucher,
+            'free_mouse' => $free_mouse,
+            'total_harga' => $subtotal + $biaya_jasa - $diskon_voucher - $free_mouse + $ongkir,
             'status' => 0,
         ];
 
         // insert transaction
         if (!$this->transactionModel->insert($transaction)) {
+            $errors = $this->transactionModel->errors();
             $db->transRollback();
-            return redirect()->back()->with('error', 'Gagal membuat transaksi');
+            return redirect()->back()->withInput()->with('error', 'Gagal Header: ' . implode(', ', $errors));
         }
 
         $transactionId = $this->transactionModel->getInsertID();
 
         // insert transaction detail
+        $productModel = new \App\Models\ProductModel();
         foreach ($cartItems as $item) {
-            $this->transactionDetailModel->insert([
+            $resDetail = $this->transactionDetailModel->insert([
                 'transaction_id' => $transactionId,
                 'product_id' => $item['id'],
                 'jumlah' => $item['qty'],
                 'diskon' => 0,
                 'subtotal_harga' => $item['qty'] * $item['price']
             ]);
+
+            if (!$resDetail) {
+                $errors = $this->transactionDetailModel->errors();
+                $db->transRollback();
+                return redirect()->back()->withInput()->with('error', 'Gagal Detail: ' . implode(', ', $errors));
+            }
+
+            // Kurangi stok produk
+            $product = $productModel->find($item['id']);
+            if ($product) {
+                $newStock = max(0, $product['jumlah'] - $item['qty']);
+                $productModel->update($item['id'], ['jumlah' => $newStock]);
+            }
         }
 
         $db->transComplete();
 
-        if (!$db->transStatus()) {
-            return redirect()->back()->with('error', 'Gagal membuat transaksi');
+        if ($db->transStatus() === false) {
+            return redirect()->back()->withInput()->with('error', 'Gagal transaksi database (Rollback)');
         }
 
-        //hapus session keranjang belanja 
+        // hapus session keranjang belanja 
         $this->cart->destroy();
-        return redirect()->to(base_url());
+        session()->setFlashdata('success', 'Pesanan Anda dengan ID #' . $transactionId . ' berhasil dibuat! Silakan cek detailnya di sini.');
+        return redirect()->to(base_url('history'));
     }
 
     public function history()
     {
         $username = session()->get('username');
+        $role = session()->get('role');
 
-        $transactions = $this->transactionModel->where('username', $username)->findAll();
-        $transactionIds = array_column($transactions, 'id');
+        if ($role == 'admin') {
+            // Admin melihat semua transaksi
+            $transactions = $this->transactionModel
+                ->orderBy('id', 'DESC')
+                ->findAll();
+        } else {
+            // Pengguna biasa hanya melihat miliknya sendiri
+            $transactions = $this->transactionModel
+                ->where('username', $username)
+                ->orderBy('id', 'DESC')
+                ->findAll();
+        }
 
-        $products = $this->transactionDetailModel->getProductsByTransactionIds($transactionIds);
+        foreach ($transactions as &$tx) {
+            $tx['details'] = $this->transactionDetailModel
+                ->select('transaction_detail.*, product.nama, product.foto, product.harga')
+                ->join('product', 'product.id = transaction_detail.product_id', 'left')
+                ->where('transaction_id', $tx['id'])
+                ->findAll();
+        }
 
-        $data = [
-            'username' => $username,
-            'transactions' => $transactions,
-            'products' => $products
-        ];
+        return view('v_history', ['transactions' => $transactions]);
+    }
 
-        return view('v_history', $data);
+    public function updateStatus($id, $status)
+    {
+        if (session()->get('role') != 'admin') {
+            return redirect()->to(base_url('/'));
+        }
+
+        $tx = $this->transactionModel->find($id);
+        if (!$tx) {
+            session()->setFlashdata('failed', 'Transaksi tidak ditemukan.');
+            return redirect()->to(base_url('/'));
+        }
+
+        $db = \Config\Database::connect();
+        $db->transStart();
+
+        $this->transactionModel->update($id, ['status' => $status]);
+
+        // Kirim notifikasi ke user
+        $notifModel = new \App\Models\NotificationModel();
+        $statusText = ($status == 1) ? 'DISETUJUI' : 'DIBATALKAN';
+        $notifModel->insert([
+            'username' => $tx['username'],
+            'message' => "Pesanan Anda #$id telah $statusText oleh Admin.",
+            'is_read' => 0
+        ]);
+
+        // Jika status diubah menjadi batal (2) dan sebelumnya bukan batal, kembalikan stok produk
+        if ($status == 2 && $tx['status'] != 2) {
+            $productModel = new \App\Models\ProductModel();
+            $details = $this->transactionDetailModel->where('transaction_id', $id)->findAll();
+            foreach ($details as $detail) {
+                $product = $productModel->find($detail['product_id']);
+                if ($product) {
+                    $productModel->update($detail['product_id'], [
+                        'jumlah' => $product['jumlah'] + $detail['jumlah']
+                    ]);
+                }
+            }
+        }
+
+        $db->transComplete();
+
+        if ($db->transStatus()) {
+            session()->setFlashdata('success', 'Status transaksi #' . $id . ' berhasil diperbarui.');
+        } else {
+            session()->setFlashdata('failed', 'Gagal memperbarui status transaksi.');
+        }
+
+        return redirect()->to(base_url('/'));
     }
 }

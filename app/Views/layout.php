@@ -80,6 +80,23 @@ if (uri_string() != "") {
           <div class="card">
             <div class="card-body">
               <h5 class="card-title"><?php echo $hlm ?></h5>
+
+              <?php if (session()->getFlashdata('success')): ?>
+                <div class="alert alert-success alert-dismissible fade show border-0 shadow-sm mb-4" role="alert">
+                  <i class="bi bi-check-circle me-2"></i>
+                  <?= session()->getFlashdata('success') ?>
+                  <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+              <?php endif; ?>
+
+              <?php if (session()->getFlashdata('error')): ?>
+                <div class="alert alert-danger alert-dismissible fade show border-0 shadow-sm mb-4" role="alert">
+                  <i class="bi bi-exclamation-octagon me-2"></i>
+                  <?= session()->getFlashdata('error') ?>
+                  <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+              <?php endif; ?>
+
               <?= $this->renderSection('content') ?>
             </div>
           </div>
