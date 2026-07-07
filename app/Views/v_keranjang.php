@@ -1,15 +1,6 @@
 <?= $this->extend('layout') ?>
 <?= $this->section('content') ?>
-<?php
-if (session()->getFlashData('success')) {
-    ?>
-    <div class="alert alert-success alert-dismissible fade show" role="alert">
-        <?= session()->getFlashData('success') ?>
-        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-    </div>
-    <?php
-}
-?>
+
 <?= form_open('keranjang/edit') ?>
 <!-- Table with stripped rows -->
 <table class="table datatable">

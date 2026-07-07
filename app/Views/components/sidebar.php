@@ -41,6 +41,36 @@
                 </a>
             </li><!-- End Profile Nav -->
             <?php
+        } else {
+            ?>
+            <li class="nav-item">
+                <a class="nav-link <?= (uri_string() == 'profile') ? '' : 'collapsed' ?>" href="<?= base_url('profile') ?>">
+                    <i class="bi bi-person"></i>
+                    <span>Profil</span>
+                </a>
+            </li><!-- End Profile Nav --> 
+
+            <li class="nav-item">
+                <a class="nav-link <?= (uri_string() == 'history') ? '' : 'collapsed' ?>" href="<?= base_url('history') ?>">
+                    <i class="bi bi-clock-history"></i>
+                    <span>History</span>
+                </a>
+            </li><!-- End History Nav --> 
+
+            <li class="nav-item">
+                <a class="nav-link <?= (uri_string() == 'faq') ? '' : 'collapsed' ?>" href="<?= base_url('faq') ?>">
+                    <i class="bi bi-question-circle"></i>
+                    <span>FAQ</span>
+                </a>
+            </li><!-- End FAQ Nav --> 
+
+            <li class="nav-item">
+                <a class="nav-link <?= (uri_string() == 'contact') ? '' : 'collapsed' ?>" href="<?= base_url('contact') ?>">
+                    <i class="bi bi-envelope"></i>
+                    <span>Contact</span>
+                </a>
+            </li><!-- End Contact Nav --> 
+            <?php
         }
         ?>
     </ul>

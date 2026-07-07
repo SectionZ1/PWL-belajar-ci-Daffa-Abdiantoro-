@@ -17,4 +17,14 @@ class Home extends BaseController
             'products' => $this->productModel->findAll()
         ]);
     }
+
+    public function faq()
+    {
+        return view('v_faq');
+    }
+
+    public function contact()
+    {
+        return view('v_contact');
+    }
 }

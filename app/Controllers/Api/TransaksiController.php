@@ -4,21 +4,26 @@ namespace App\Controllers\Api;
 
 use App\Controllers\BaseController;
 use CodeIgniter\HTTP\ResponseInterface;
- 
+use CodeIgniter\RESTful\ResourceController;
+use CodeIgniter\API\ResponseTrait;
+
 use App\Models\TransactionModel;
 use App\Models\TransactionDetailModel;
 
 class TransaksiController extends BaseController
 {
+    use ResponseTrait;
     protected $transactionModel;
     protected $transactionDetailModel;
     private $token;
 
     function __construct()
-    {  
-        $this->transactionModel = new TransactionModel(); 
-        $this->transactionDetailModel = new TransactionDetailModel(); 
+    {
+        $this->transactionModel = new TransactionModel();
+        $this->transactionDetailModel = new TransactionDetailModel();
         $this->token = env('MY_API_KEY');
+
+        require_once APPPATH . 'Helpers/DiskonHelper.php';
     }
 
     private function authenticate()
@@ -39,23 +44,23 @@ class TransaksiController extends BaseController
     private function unauthorized()
     {
         return $this->response
-                    ->setStatusCode(401)
-                    ->setJSON([
-                        'status'  => false,
-                        'message' => 'Unauthorized'
-        ]);
+            ->setStatusCode(401)
+            ->setJSON([
+                'status' => false,
+                'message' => 'Unauthorized'
+            ]);
     }
 
     public function index()
     {
-        if (! $this->authenticate()) {
+        if (!$this->authenticate()) {
             return $this->unauthorized();
         }
 
         $start = $this->request->getGet('start');
-        $end   = $this->request->getGet('end'); 
+        $end = $this->request->getGet('end');
 
-        $page    = (int) ($this->request->getGet('page') ?? 1);
+        $page = (int) ($this->request->getGet('page') ?? 1);
         $perPage = (int) ($this->request->getGet('per_page') ?? 10);
 
         // Query transaksi
@@ -64,7 +69,7 @@ class TransaksiController extends BaseController
         if ($start && $end) {
             $query->where('created_at >=', $start)->where('created_at <=', $end);
         }
-        
+
         // Pagination
         $transactions = $query->paginate($perPage, 'default', $page);
 
@@ -93,17 +98,46 @@ class TransaksiController extends BaseController
         return $this->response->setJSON([
             'filter' => [
                 'start' => $start,
-                'end'   => $end,
+                'end' => $end,
             ],
             'data' => $transactions,
             'pagination' => [
                 'current_page' => $page,
-                'per_page'     => $perPage,
-                'last_page'    => $pager->getPageCount(),
-                'total_data'   => $pager->getTotal(),
-                'has_next'     => $page < $pager->getPageCount(),
-                'has_prev'     => $page > 1,
+                'per_page' => $perPage,
+                'last_page' => $pager->getPageCount(),
+                'total_data' => $pager->getTotal(),
+                'has_next' => $page < $pager->getPageCount(),
+                'has_prev' => $page > 1,
             ]
+        ]);
+    }
+
+    public function checkout()
+    {
+        // 1. Ambil data input dari request (ongkir, produk, qty, dll.)
+        $total_harga_produk = $this->request->getPost('total_harga'); // Total sebelum diskon & ongkir
+        $ongkir = $this->request->getPost('ongkir');
+
+        // 2. Hitung diskon menggunakan Helper Function
+        $hasil_diskon = hitung_diskon($total_harga_produk);
+        $nominal_diskon = $hasil_diskon['nominal'];
+
+        // 3. Hitung Grand Total final
+        $grand_total = $total_harga_produk - $nominal_diskon + $ongkir;
+
+        // 4. Siapkan data untuk disimpan ke database
+        $dataTransaksi = [
+            'user_id' => session()->get('user_id'), 
+            'total_harga' => $total_harga_produk,
+            'diskon' => $nominal_diskon,
+            'ongkir' => $ongkir,
+            'grand_total' => $grand_total,
+        ];
+
+        return $this->respondCreated([
+            'status' => true,
+            'message' => 'Pesanan berhasil dibuat!',
+            'data' => $dataTransaksi
         ]);
     }
 }
